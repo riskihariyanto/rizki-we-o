@@ -700,23 +700,41 @@ a {
 
 .amounts {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 8px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
 }
 
 .amount {
   display: grid;
   gap: 2px;
-  padding: 8px 10px;
+  min-width: 0;
+  padding: 8px 4px;
   background: var(--bg);
   border: 1px solid var(--line);
   border-radius: var(--radius);
-  font-size: 0.8rem;
-  overflow-wrap: anywhere;
+  font-size: 0.75rem;
+  text-align: center;
 }
 
 .amount strong {
-  font-size: 0.88rem;
+  font-size: 0.72rem;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+@media (min-width: 480px) {
+  .amounts {
+    gap: 8px;
+  }
+
+  .amount {
+    padding: 8px 10px;
+    font-size: 0.8rem;
+  }
+
+  .amount strong {
+    font-size: 0.88rem;
+  }
 }
 
 .amounts.settled .amount {
