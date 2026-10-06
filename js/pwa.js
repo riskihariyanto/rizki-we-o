@@ -1,4 +1,5 @@
 const installButton = document.getElementById("btn-install");
+const iosDialog = document.getElementById("ios-install-dialog");
 let installEvent = null;
 
 function showInstall(visible) {
@@ -7,6 +8,11 @@ function showInstall(visible) {
 
 function isStandalone() {
   return window.matchMedia("(display-mode: standalone)").matches || navigator.standalone === true;
+}
+
+function isIOS() {
+  return /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+    (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
 }
 
 function registerWorker() {
@@ -42,5 +48,22 @@ function bindInstall() {
   });
 }
 
+function bindIosGuide() {
+  if (!installButton || !iosDialog || isStandalone() || !isIOS()) return false;
+
+  installButton.textContent = "[ 📱 Cara Pasang di iOS ]";
+  showInstall(true);
+
+  installButton.addEventListener("click", () => {
+    if (typeof iosDialog.showModal === "function") iosDialog.showModal();
+  });
+
+  iosDialog.addEventListener("click", (event) => {
+    if (event.target === iosDialog) iosDialog.close();
+  });
+
+  return true;
+}
+
 registerWorker();
-bindInstall();
+if (!bindIosGuide()) bindInstall();
