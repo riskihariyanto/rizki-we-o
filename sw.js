@@ -1,4 +1,4 @@
-const VERSION = "v1";
+const VERSION = "v2";
 const SHELL_CACHE = `wo-shell-${VERSION}`;
 const SDK_CACHE = "wo-sdk-10.14.1";
 
@@ -44,8 +44,14 @@ const SHELL = [
   "./js/views/owner/overview.js",
   "./js/views/owner/package.js",
   "./js/views/owner/packageBuilder.js",
-  "./icons/icon-192.png",
-  "./icons/icon-512.png"
+  "./favicon.ico",
+  "./icons/icon-192x192.png",
+  "./icons/icon-512x512.png",
+  "./icons/maskable-192x192.png",
+  "./icons/maskable-512x512.png",
+  "./icons/apple-touch-icon.png",
+  "./icons/favicon-32x32.png",
+  "./icons/favicon-16x16.png"
 ];
 
 self.addEventListener("install", (event) => {
