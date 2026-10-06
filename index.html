@@ -20,6 +20,19 @@
   <main id="app" aria-live="polite"></main>
   <button id="btn-install" class="install-btn" type="button" hidden>[ 📱 Instal Aplikasi ]</button>
   <div id="toast" role="status"></div>
+  <dialog id="ios-install-dialog" class="ios-dialog" aria-labelledby="ios-install-title">
+    <div class="ios-dialog-body">
+      <h2 id="ios-install-title">Pasang di iPhone atau iPad</h2>
+      <ol class="ios-steps">
+        <li>Buka halaman ini langsung di <strong>Safari</strong>, bukan dari dalam WhatsApp, Instagram, atau aplikasi lain.</li>
+        <li>Ketuk tombol <strong>Bagikan</strong> pada bilah Safari.</li>
+        <li>Gulir menu, pilih <strong>Tambah ke Layar Utama</strong>, lalu ketuk <strong>Tambah</strong>.</li>
+      </ol>
+      <form method="dialog">
+        <button type="submit" class="ios-dialog-close">Saya mengerti</button>
+      </form>
+    </div>
+  </dialog>
   <script type="module" src="js/app.js"></script>
   <script type="module" src="js/pwa.js"></script>
 </body>
