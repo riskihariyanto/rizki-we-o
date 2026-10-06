@@ -994,6 +994,88 @@ button {
   outline-offset: 3px;
 }
 
+.ios-dialog {
+  width: min(92vw, 420px);
+  padding: 0;
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  box-shadow: 0 16px 48px rgba(15, 23, 42, 0.28);
+}
+
+.ios-dialog::backdrop {
+  background: rgba(15, 23, 42, 0.55);
+}
+
+.ios-dialog-body {
+  padding: 24px 20px 20px;
+}
+
+.ios-dialog-body h2 {
+  margin: 0 0 16px;
+  font-size: 1.15rem;
+  line-height: 1.3;
+}
+
+.ios-steps {
+  display: grid;
+  gap: 14px;
+  margin: 0 0 20px;
+  padding: 0;
+  list-style: none;
+  counter-reset: ios-step;
+}
+
+.ios-steps li {
+  position: relative;
+  min-height: 28px;
+  padding-left: 40px;
+  color: var(--muted);
+  counter-increment: ios-step;
+}
+
+.ios-steps li::before {
+  content: counter(ios-step);
+  position: absolute;
+  top: 0;
+  left: 0;
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: var(--primary-text);
+  background: var(--primary);
+  border-radius: 50%;
+}
+
+.ios-steps strong {
+  color: var(--text);
+}
+
+.ios-dialog-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: 44px;
+  padding: 10px 16px;
+  font: inherit;
+  font-weight: 600;
+  color: var(--primary-text);
+  background: var(--primary);
+  border: 1px solid var(--primary);
+  border-radius: var(--radius);
+  cursor: pointer;
+}
+
+.ios-dialog-close:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 3px;
+}
+
 @media (min-width: 768px) {
   :root {
     --gutter: 24px;
