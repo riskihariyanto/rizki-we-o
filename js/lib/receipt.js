@@ -15,6 +15,11 @@ export function formatTanggal(tanggal) {
   return dateLong.format(new Date(y, m - 1, d));
 }
 
+export function layananLabel(asetIds) {
+  const ids = Array.isArray(asetIds) ? asetIds : [asetIds];
+  return ids.filter(Boolean).map((id) => LABEL[id] || id).join(", ");
+}
+
 export function receiptNumber(kodeVendor, year, sequence) {
   return `KW-${kodeVendor}-${year}-${String(sequence).padStart(4, "0")}`;
 }
@@ -36,7 +41,7 @@ export function buildReceiptText(data) {
     "",
     `Vendor: ${data.namaVendor}`,
     `Klien: ${data.namaKlien}`,
-    `Layanan: ${LABEL[data.asetId] || data.asetId}`,
+    `Layanan: ${layananLabel(data.asetIds || data.asetId)}`,
     `Tanggal acara: ${formatTanggal(data.tanggalAcara)}`,
     "",
     `Pembayaran: ${JENIS[data.jenis] || data.jenis}`,
