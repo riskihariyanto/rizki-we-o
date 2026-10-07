@@ -1,5 +1,5 @@
 import { CATEGORIES } from "../constants.js";
-import { formatRupiah, formatTanggal } from "./receipt.js";
+import { formatRupiah, formatTanggal, layananLabel } from "./receipt.js";
 import {
   loadPdf,
   terbilang,
@@ -136,7 +136,7 @@ function drawSignature(doc, y, namaVendor) {
 export async function buildReceiptPdf(data) {
   const doc = await createDocument();
   const vendor = vendorInfo(data.vendor);
-  const layanan = LABEL[data.asetId] || data.asetId;
+  const layanan = layananLabel(data.asetIds || data.asetId);
   const remaining = remainingOf(data.totalTagihan, data.totalDibayar);
   const lunas = remaining === 0;
 
@@ -181,7 +181,7 @@ export async function buildInvoicePdf(data) {
 
   const doc = await createDocument();
   const vendor = vendorInfo(data.vendor);
-  const layanan = LABEL[data.asetId] || data.asetId;
+  const items = data.items && data.items.length ? data.items : [{ asetId: data.asetId, totalTagihan: total }];
   const paid = Number(data.totalDibayar) || 0;
   const remaining = remainingOf(total, paid);
   const lunas = remaining === 0;
@@ -204,7 +204,11 @@ export async function buildInvoicePdf(data) {
       { title: "Deskripsi", x: MARGIN + 16, width: 110 },
       { title: "Jumlah", x: RIGHT - 3, width: 36, align: "right" }
     ],
-    [["1", `Jasa ${layanan} - acara ${formatTanggal(data.tanggalAcara)}`, formatRupiah(total)]]
+    items.map((item, index) => [
+      String(index + 1),
+      `Jasa ${LABEL[item.asetId] || item.asetId} - acara ${formatTanggal(data.tanggalAcara)}`,
+      formatRupiah(item.totalTagihan)
+    ])
   );
 
   y += 10;
@@ -272,4 +276,4 @@ export async function downloadInvoicePdf(data) {
   const doc = await buildInvoicePdf(data);
   const number = data.nomor || invoiceNumber(data.vendor && data.vendor.kodeVendor, data.bookingId, data.tanggalAcara);
   doc.save(`Invoice_${safeName(number)}.pdf`);
-}
+             }
