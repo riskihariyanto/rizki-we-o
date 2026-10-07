@@ -1,4 +1,4 @@
-const VERSION = "v2";
+const VERSION = "v3";
 const SHELL_CACHE = `wo-shell-${VERSION}`;
 const SDK_CACHE = "wo-sdk-10.14.1";
 
@@ -13,6 +13,7 @@ const SHELL = [
   "./js/firebase.js",
   "./js/router.js",
   "./js/lib/availability.js",
+  "./js/lib/bookingGroup.js",
   "./js/lib/costing.js",
   "./js/lib/money.js",
   "./js/lib/pdf.js",
