@@ -3,6 +3,7 @@ import { CATEGORIES, PAYMENT_STATUS } from "../../constants.js";
 import { renderPaymentForm } from "./paymentForm.js";
 import { renderBlockForm } from "./blockForm.js";
 import { attachMoney, parseMoney } from "../../lib/money.js";
+import { groupBookings } from "../../lib/bookingGroup.js";
 
 const LABEL = Object.fromEntries(CATEGORIES.map((c) => [c.id, c.label]));
 const label = (id) => LABEL[id] || id;
@@ -68,7 +69,12 @@ function createAccordion() {
   };
 }
 
-function bookingCard(booking, accordion, onCancel, namaVendor, vendor) {
+function slotText(items) {
+  const slots = Array.from(new Set(items.map((item) => item.slotKe)));
+  return `slot ${slots.join("/")}`;
+}
+
+function bookingCard(group, accordion, onCancel, namaVendor, vendor) {
   const card = el("article", "card booking-card");
   const head = el("button", "booking-head");
   const main = el("div", "booking-head-main");
@@ -77,8 +83,8 @@ function bookingCard(booking, accordion, onCancel, namaVendor, vendor) {
   const inner = el("div", "collapse-inner stack");
   const paymentBox = el("div");
   const footer = el("div", "booking-footer");
-  const cancel = el("button", "btn danger inline", "Batalkan Booking");
-  const venue = [booking.jamAcara && `Pukul ${booking.jamAcara}`, booking.lokasi].filter(Boolean).join(" · ");
+  const many = group.items.length > 1;
+  const venue = [group.jamAcara && `Pukul ${group.jamAcara}`, group.lokasi].filter(Boolean).join(" · ");
 
   function setStatus(status) {
     badge.textContent = PAYMENT_STATUS[status] || status;
@@ -92,32 +98,38 @@ function bookingCard(booking, accordion, onCancel, namaVendor, vendor) {
   }
 
   head.type = "button";
-  cancel.type = "button";
   body.inert = true;
 
-  main.append(el("strong", "", booking.namaKlien));
+  main.append(el("strong", "", group.namaKlien));
   if (venue) main.append(el("span", "muted booking-venue", venue));
   head.append(main, badge);
-  setStatus(booking.statusBayar);
+  setStatus(group.statusBayar);
 
-  renderPaymentForm(paymentBox, { booking, namaVendor, vendor, onStatus: setStatus });
+  renderPaymentForm(paymentBox, { group, namaVendor, vendor, onStatus: setStatus });
 
   head.addEventListener("click", () => {
-    if (!accordion.toggle(booking.id)) return;
+    if (!accordion.toggle(group.key)) return;
     window.setTimeout(() => head.scrollIntoView({ behavior: "smooth", block: "nearest" }), 240);
   });
 
-  cancel.addEventListener("click", () => {
-    if (!window.confirm(`Batalkan booking ${booking.namaKlien} (${label(booking.asetId)})? Slot akan dikembalikan dan tindakan ini tidak bisa diurungkan.`)) return;
-    cancel.disabled = true;
-    onCancel(booking.id);
+  group.items.forEach((item) => {
+    const cancel = el("button", "btn danger inline", many ? `Batalkan ${label(item.asetId)}` : "Batalkan Booking");
+    cancel.type = "button";
+    cancel.addEventListener("click", () => {
+      if (!window.confirm(`Batalkan booking ${group.namaKlien} (${label(item.asetId)})? Slot akan dikembalikan dan tindakan ini tidak bisa diurungkan.`)) return;
+      footer.querySelectorAll("button").forEach((button) => {
+        button.disabled = true;
+      });
+      onCancel(item.id);
+    });
+    footer.append(cancel);
   });
 
-  footer.append(cancel);
-  inner.append(el("p", "muted", `${label(booking.asetId)} · slot ${booking.slotKe} · ${booking.noWaKlien}`), paymentBox, footer);
+  const services = group.items.map((item) => label(item.asetId)).join(" · ");
+  inner.append(el("p", "muted", `${services} · ${slotText(group.items)} · ${group.noWaKlien}`), paymentBox, footer);
   body.append(inner);
   card.append(head, body);
-  accordion.register(booking.id, setOpen);
+  accordion.register(group.key, setOpen);
   return card;
 }
 
@@ -243,11 +255,11 @@ export function renderDayPanel(container, { vendorId, namaVendor, vendor, aset, 
   async function loadBookings() {
     try {
       const month = await listBookingsByMonth(vendorId, tanggal.slice(0, 7));
-      const list = month.filter((b) => b.tanggalAcara === tanggal);
+      const groups = groupBookings(month.filter((b) => b.tanggalAcara === tanggal));
       const accordion = createAccordion();
-      list.forEach((b) => bookings.append(bookingCard(b, accordion, handleCancel, namaVendor, vendor)));
-      tabs.setTitle("booking", list.length > 0 ? `Booking (${list.length})` : "Booking");
-      if (list.length === 0) bookings.append(emptyBookings());
+      groups.forEach((group) => bookings.append(bookingCard(group, accordion, handleCancel, namaVendor, vendor)));
+      tabs.setTitle("booking", groups.length > 0 ? `Booking (${groups.length})` : "Booking");
+      if (groups.length === 0) bookings.append(emptyBookings());
     } catch (err) {
       console.error(err);
       bookings.append(el("p", "error", "Gagal memuat booking."));
