@@ -1,12 +1,13 @@
 import {
-  addPayment,
-  updateTotalTagihan,
-  listPayments,
+  addGroupPayment,
+  updateGroupTotals,
+  listGroupPayments,
   paymentMessage,
   paymentStatus,
   todayKey
 } from "../../services/payments.js";
-import { buildReceiptText, whatsappLink, formatRupiah, formatTanggal } from "../../lib/receipt.js";
+import { buildReceiptText, whatsappLink, formatRupiah, formatTanggal, layananLabel } from "../../lib/receipt.js";
+import { statusOf } from "../../lib/bookingGroup.js";
 import { attachMoney, parseMoney, setMoney } from "../../lib/money.js";
 import { downloadReceiptPdf, downloadInvoicePdf, pdfMessage } from "../../lib/pdf.js";
 
@@ -40,10 +41,16 @@ const PAY_TEMPLATE = `
   <button class="btn" type="submit">Simpan Pembayaran</button>
 `;
 
-const TOTAL_TEMPLATE = `
-  <label class="field"><span>Total tagihan (Rp)</span><input type="text" name="total" placeholder="0" required></label>
-  <button class="btn ghost" type="submit">Ubah Total</button>
-`;
+function totalTemplate(items) {
+  const single = items.length === 1;
+  const fields = items
+    .map((item) => {
+      const title = single ? "Total tagihan (Rp)" : `Total ${layananLabel(item.asetId)} (Rp)`;
+      return `<label class="field"><span>${title}</span><input type="text" name="total-${item.asetId}" placeholder="0" required></label>`;
+    })
+    .join("");
+  return `${fields}<button class="btn ghost" type="submit">Ubah Total</button>`;
+}
 
 function createSection(title, ...children) {
   const toggle = el("button", "section-toggle", title);
@@ -67,13 +74,25 @@ function createSection(title, ...children) {
   return { toggle, root, setOpen, setTitle: (text) => (toggle.textContent = text) };
 }
 
-export function renderPaymentForm(container, { booking, namaVendor, vendor, onStatus }) {
-  const state = { ...booking, totalTagihan: Number(booking.totalTagihan) || 0, totalDibayar: Number(booking.totalDibayar) || 0 };
+function sumOf(items, field) {
+  return items.reduce((sum, item) => sum + (Number(item[field]) || 0), 0);
+}
+
+export function renderPaymentForm(container, { group, namaVendor, vendor, onStatus }) {
+  const state = {
+    ...group,
+    items: group.items.map((item) => ({
+      ...item,
+      totalTagihan: Number(item.totalTagihan) || 0,
+      totalDibayar: Number(item.totalDibayar) || 0
+    }))
+  };
   const vendorData = {
-    kodeVendor: String(booking.vendorId || "").slice(0, 5).toUpperCase(),
+    kodeVendor: String(group.vendorId || "").slice(0, 5).toUpperCase(),
     ...vendor,
     namaVendor: (vendor && vendor.namaVendor) || namaVendor
   };
+  const bookingIds = state.items.map((item) => item.id);
   let payments = [];
 
   container.replaceChildren();
@@ -103,14 +122,20 @@ export function renderPaymentForm(container, { booking, namaVendor, vendor, onSt
   invoiceButton.type = "button";
   totalForm.noValidate = true;
   payForm.noValidate = true;
-  totalForm.innerHTML = TOTAL_TEMPLATE;
+  totalForm.innerHTML = totalTemplate(state.items);
   payForm.innerHTML = PAY_TEMPLATE;
-  attachMoney(totalForm.elements.total);
+  state.items.forEach((item) => attachMoney(totalForm.elements[`total-${item.asetId}`]));
   attachMoney(payForm.elements.nominal);
   payForm.elements.tanggalBayar.value = todayKey();
 
   root.append(amounts, payButton, payHint, payPanel.root, history.toggle, history.root, billing.toggle, billing.root, errorBox);
   container.append(root);
+
+  function totals() {
+    const total = sumOf(state.items, "totalTagihan");
+    const paid = sumOf(state.items, "totalDibayar");
+    return { total, paid, rest: Math.max(0, total - paid) };
+  }
 
   function setPayOpen(open) {
     payPanel.setOpen(open);
@@ -122,13 +147,13 @@ export function renderPaymentForm(container, { booking, namaVendor, vendor, onSt
   payButton.addEventListener("click", () => setPayOpen(!payPanel.root.classList.contains("open")));
 
   function refreshSummary() {
-    const rest = Math.max(0, state.totalTagihan - state.totalDibayar);
-    amountText.total.textContent = formatRupiah(state.totalTagihan);
-    amountText.paid.textContent = formatRupiah(state.totalDibayar);
+    const { total, paid, rest } = totals();
+    amountText.total.textContent = formatRupiah(total);
+    amountText.paid.textContent = formatRupiah(paid);
     amountText.rest.textContent = formatRupiah(rest);
-    amounts.classList.toggle("settled", state.totalTagihan > 0 && rest === 0);
-    setMoney(totalForm.elements.total, state.totalTagihan);
-    const noTotal = state.totalTagihan <= 0;
+    amounts.classList.toggle("settled", total > 0 && rest === 0);
+    state.items.forEach((item) => setMoney(totalForm.elements[`total-${item.asetId}`], item.totalTagihan));
+    const noTotal = total <= 0;
     const settled = !noTotal && rest === 0;
     payButton.hidden = settled;
     payButton.disabled = noTotal;
@@ -136,7 +161,18 @@ export function renderPaymentForm(container, { booking, namaVendor, vendor, onSt
     invoiceButton.hidden = noTotal;
     if (settled || noTotal) setPayOpen(false);
     if (noTotal) billing.setOpen(true);
-    if (onStatus) onStatus(state.statusBayar);
+    if (onStatus) onStatus(statusOf(paid, total));
+  }
+
+  function allocate(amount) {
+    let left = amount;
+    state.items.forEach((item) => {
+      const share = Math.min(Math.max(0, item.totalTagihan - item.totalDibayar), left);
+      if (share <= 0) return;
+      left -= share;
+      item.totalDibayar += share;
+      item.statusBayar = paymentStatus(item.totalDibayar, item.totalTagihan);
+    });
   }
 
   function receiptData(payment, cumulative) {
@@ -144,14 +180,14 @@ export function renderPaymentForm(container, { booking, namaVendor, vendor, onSt
       nomorKuitansi: payment.nomorKuitansi,
       namaVendor: vendorData.namaVendor,
       namaKlien: state.namaKlien,
-      asetId: state.asetId,
+      asetIds: state.items.map((item) => item.asetId),
       tanggalAcara: state.tanggalAcara,
       jamAcara: state.jamAcara,
       lokasi: state.lokasi,
       jenis: payment.jenis,
       nominal: payment.nominal,
       tanggalBayar: payment.tanggalBayar,
-      totalTagihan: state.totalTagihan,
+      totalTagihan: totals().total,
       totalDibayar: cumulative
     };
   }
@@ -190,26 +226,29 @@ export function renderPaymentForm(container, { booking, namaVendor, vendor, onSt
   }
 
   invoiceButton.addEventListener("click", () =>
-    runPdf(invoiceButton, () =>
-      downloadInvoicePdf({
+    runPdf(invoiceButton, () => {
+      const { total, paid } = totals();
+      return downloadInvoicePdf({
         vendor: vendorData,
         bookingId: state.id,
         namaKlien: state.namaKlien,
         noWaKlien: state.noWaKlien,
-        asetId: state.asetId,
+        items: state.items
+          .filter((item) => item.totalTagihan > 0)
+          .map((item) => ({ asetId: item.asetId, totalTagihan: item.totalTagihan })),
         tanggalAcara: state.tanggalAcara,
         jamAcara: state.jamAcara,
         lokasi: state.lokasi,
-        totalTagihan: state.totalTagihan,
-        totalDibayar: state.totalDibayar,
+        totalTagihan: total,
+        totalDibayar: paid,
         payments
-      })
-    )
+      });
+    })
   );
 
   async function loadPayments() {
     try {
-      payments = await listPayments(state.id);
+      payments = await listGroupPayments(bookingIds);
       let running = 0;
       list.replaceChildren();
       history.setTitle(payments.length > 0 ? `Riwayat Pembayaran (${payments.length})` : "Riwayat Pembayaran");
@@ -243,12 +282,18 @@ export function renderPaymentForm(container, { booking, namaVendor, vendor, onSt
   totalForm.addEventListener("submit", async (event) => {
     event.preventDefault();
     errorBox.textContent = "";
-    const value = parseMoney(totalForm.elements.total.value);
+
+    const entries = state.items.map((item) => ({
+      id: item.id,
+      total: parseMoney(totalForm.elements[`total-${item.asetId}`].value)
+    }));
 
     try {
-      await updateTotalTagihan(state.id, value);
-      state.totalTagihan = value;
-      state.statusBayar = paymentStatus(state.totalDibayar, value);
+      await updateGroupTotals(entries);
+      state.items.forEach((item, index) => {
+        item.totalTagihan = entries[index].total;
+        item.statusBayar = paymentStatus(item.totalDibayar, item.totalTagihan);
+      });
       refreshSummary();
     } catch (err) {
       console.error(err);
@@ -264,15 +309,15 @@ export function renderPaymentForm(container, { booking, namaVendor, vendor, onSt
     submit.disabled = true;
 
     try {
-      const result = await addPayment({
-        bookingId: state.id,
+      const nominal = parseMoney(payForm.elements.nominal.value);
+      await addGroupPayment({
+        bookingIds,
         vendorId: state.vendorId,
-        nominal: parseMoney(payForm.elements.nominal.value),
+        nominal,
         metode: payForm.elements.metode.value,
         tanggalBayar: payForm.elements.tanggalBayar.value || todayKey()
       });
-      state.totalDibayar = result.totalDibayar;
-      state.statusBayar = paymentStatus(result.totalDibayar, state.totalTagihan);
+      allocate(nominal);
       setMoney(payForm.elements.nominal, 0);
       refreshSummary();
       setPayOpen(false);
