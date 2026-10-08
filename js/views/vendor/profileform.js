@@ -99,6 +99,7 @@ export function renderProfileForm(container, { vendorId, vendor, email, onSaved 
 
   const title = document.createElement("summary");
   title.textContent = "Profil & Rekening";
+
   card.append(title, form);
   container.append(card);
 }
