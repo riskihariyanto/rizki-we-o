@@ -1877,6 +1877,22 @@ a {
   margin-top: 0;
 }
 
+.whatsapp-help {
+  gap: 10px;
+  min-height: 48px;
+  padding: 12px 18px;
+  text-decoration: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.whatsapp-help .btn-icon {
+  flex: none;
+}
+
+.whatsapp-help:active {
+  transform: scale(0.98);
+}
+
 .screen-bar {
   display: flex;
   align-items: center;
